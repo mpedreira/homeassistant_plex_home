@@ -1,0 +1,14 @@
+{
+  "domain": "plex_watch",
+  "name": "Plex Watch",
+  "version": "1.0.0",
+  "documentation": "https://github.com/tu_usuario/plex_watch",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": ["@tu_usuario"],
+  "config_flow": true,
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/tu_usuario/plex_watch/issues",
+  "after_dependencies": [],
+  "integration_type": "service"
+}

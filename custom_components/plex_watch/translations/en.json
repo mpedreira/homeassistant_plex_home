@@ -1,0 +1,46 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Plex (v2)",
+        "description": "Click Submit to start the Plex PIN authentication. No token needed."
+      },
+      "auth_wait": {
+        "title": "Authorize Plex Watch",
+        "description": "1. Copy the URL below and open it in your browser\n2. Sign in to Plex and authorize\n3. Come back here and click Submit",
+        "data": {
+          "plex_url": "Authorization URL (copy and open in browser)"
+        }
+      },
+      "select_server": {
+        "title": "Select Plex Server",
+        "description": "Choose the Plex server to monitor.",
+        "data": {
+          "server_id": "Server",
+          "use_local": "Allow local network connections (only enable if HA is on the same LAN as Plex)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to Plex. Check your network.",
+      "auth_not_completed": "Authorization not completed yet. Authorize in the browser first, then click Submit.",
+      "no_servers": "No Plex servers found for this account.",
+      "invalid_server": "Invalid server selected."
+    },
+    "abort": {
+      "already_configured": "This Plex server is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Plex Watch Options",
+        "data": {
+          "server_id": "Server",
+          "use_local": "Allow local network connections (only enable if HA is on the same LAN as Plex)",
+          "watched_series": "Series to follow — comma-separated (e.g. Dragon Ball Z, One Piece). Leave empty to disable new-episode alerts."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+play_series:
+  name: Play Series
+  description: Send a play command to a Plex client for a given series.
+  fields:
+    series_rating_key:
+      name: Series Rating Key
+      description: The Plex ratingKey of the series to play.
+      required: true
+      example: "12345"
+      selector:
+        text:
+    client_identifier:
+      name: Client Identifier
+      description: The machineIdentifier of the Plex client to play on.
+      required: true
+      example: "abc123"
+      selector:
+        text:
+
+get_current_series:
+  name: Get Current Series
+  description: Updates plex_watch.current_series state with the currently playing episode title.

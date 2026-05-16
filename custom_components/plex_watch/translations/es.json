@@ -1,0 +1,46 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Conectar con Plex (v2)",
+        "description": "Pulsa Enviar para iniciar la autenticación por PIN. No se necesita ningún token."
+      },
+      "auth_wait": {
+        "title": "Autorizar Plex Watch",
+        "description": "1. Copia la URL de abajo y ábrela en tu navegador\n2. Inicia sesión en Plex y autoriza\n3. Vuelve aquí y pulsa Enviar",
+        "data": {
+          "plex_url": "URL de autorización (cópiala y ábrela en el navegador)"
+        }
+      },
+      "select_server": {
+        "title": "Selecciona el servidor Plex",
+        "description": "Elige el servidor Plex a monitorizar.",
+        "data": {
+          "server_id": "Servidor",
+          "use_local": "Permitir conexiones de red local (activa solo si HA está en la misma LAN que Plex)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No se puede conectar con Plex. Comprueba tu red.",
+      "auth_not_completed": "Autorización no completada. Autoriza en el navegador primero y luego pulsa Siguiente.",
+      "no_servers": "No se encontraron servidores Plex para esta cuenta.",
+      "invalid_server": "Servidor seleccionado no válido."
+    },
+    "abort": {
+      "already_configured": "Este servidor Plex ya está configurado."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de Plex Watch",
+        "data": {
+          "server_id": "Servidor",
+          "use_local": "Permitir conexiones de red local (activa solo si HA est\u00e1 en la misma LAN que Plex)",
+          "watched_series": "Series a seguir \u2014 separadas por coma (ej: Dragon Ball Z, One Piece). Deja vac\u00edo para desactivar las alertas de nuevos episodios."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+DOMAIN = "plex_watch"
+PLATFORMS = ["sensor"]
+CONF_TOKEN = "token"
+CONF_SERVER_ID = "server_id"
+CONF_SERVER_NAME = "server_name"
+CONF_BASE_URL = "base_url"
+CONF_SELECTED_SERVER = "selected_server"
+CONF_USE_LOCAL = "use_local"
+CONF_WATCHED_SERIES = "watched_series"
+DEFAULT_SCAN_INTERVAL = 30  # seconds
+STORAGE_KEY = "plex_watch_storage"
+STORAGE_VERSION = 1
