@@ -128,7 +128,9 @@ class PlexDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.warning("[plex_watch] Could not verify connection — returning empty data, will retry on next poll")
                 return {"sessions": [], "recently_added": [], "on_deck": [], "unwatched_counts": {}, "my_session": None, "new_series_detected": False, "server_online": False}
 
-        sessions = await self.api.get_sessions(self.base_url)
+        raw_sessions = await self.api.get_sessions(self.base_url)
+        sessions_ok: bool = raw_sessions is not None
+        sessions: list = raw_sessions if sessions_ok else []
         recently_added = await self.api.get_library_recently_added(self.base_url)
         on_deck = await self.api.get_on_deck(self.base_url)
 
@@ -181,6 +183,7 @@ class PlexDataUpdateCoordinator(DataUpdateCoordinator):
 
         return {
             "sessions": sessions,
+            "sessions_ok": sessions_ok,
             "recently_added": recently_added,
             "on_deck": on_deck,
             "my_session": my_session,

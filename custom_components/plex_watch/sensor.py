@@ -137,7 +137,11 @@ class PlexServerStatusSensor(CoordinatorEntity, SensorEntity):
 
 
 class PlexOnDeckSensor(CoordinatorEntity, SensorEntity):
-    """What you are watching right now (my_session), or the top in-progress item (on_deck)."""
+    """Shows what you are watching right now, or None if you are not watching anything.
+
+    Falls back to the top on_deck item only when sessions cannot be read (e.g. 403).
+    Shows HA 'unknown' only when neither source can be reached.
+    """
 
     def __init__(self, coordinator, entry_id: str):
         super().__init__(coordinator)
@@ -145,15 +149,28 @@ class PlexOnDeckSensor(CoordinatorEntity, SensorEntity):
         self._attr_icon = "mdi:play-box-multiple"
         self._attr_unique_id = f"{entry_id}_on_deck"
 
-    def _source(self):
-        """Return (item, is_live) — prefer active session, fallback to on_deck queue."""
-        my_session = self.coordinator.data.get("my_session")
-        if my_session:
-            return my_session, True
-        items = self.coordinator.data.get("on_deck", [])
-        return (items[0] if items else None), False
+    def _resolve(self):
+        """Return (item, is_live, known) tuple.
 
-    def _format_episode(self, item) -> str | None:
+        is_live=True  → item is a current active session
+        is_live=False → item is from on_deck queue (fallback)
+        known=False   → both sources failed; sensor should return unknown
+        """
+        sessions_ok: bool = self.coordinator.data.get("sessions_ok", False)
+        my_session = self.coordinator.data.get("my_session")
+
+        if sessions_ok:
+            # We got a real answer from the server: either playing or definitively idle
+            return my_session, True, True
+
+        # sessions failed (403/401) — fall back to on_deck queue
+        items = self.coordinator.data.get("on_deck", [])
+        if items:
+            return items[0], False, True
+
+        return None, False, False
+
+    def _format_episode(self, item) -> str:
         if item.get("media_type") == "episode" and item.get("grandparent_title"):
             season = item.get("season_index", "?")
             ep = item.get("episode_index", "?")
@@ -163,19 +180,21 @@ class PlexOnDeckSensor(CoordinatorEntity, SensorEntity):
             except (TypeError, ValueError):
                 s_str, e_str = str(season), str(ep)
             return f"{item['grandparent_title']} S{s_str}E{e_str}"
-        return item.get("title")
+        return item.get("title") or ""
 
     @property
     def state(self):
-        item, _ = self._source()
-        if not item:
-            return None
+        item, is_live, known = self._resolve()
+        if not known:
+            return None          # → HA "unknown"
+        if item is None:
+            return "none"        # sessions OK but not watching
         return self._format_episode(item)
 
     @property
     def extra_state_attributes(self):
-        item, is_live = self._source()
-        if not item:
+        item, is_live, known = self._resolve()
+        if not known or item is None:
             return {"playing": False}
         attrs = {
             "playing": is_live,

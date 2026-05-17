@@ -258,21 +258,24 @@ class PlexAPI:
         _LOGGER.debug("Reachable Plex servers: %d", len(servers))
         return servers
 
-    async def get_sessions(self, base_url: str) -> list[dict[str, Any]]:
-        """Fetch active playback sessions."""
+    async def get_sessions(self, base_url: str) -> list[dict[str, Any]] | None:
+        """Fetch active playback sessions.
+
+        Returns None on error (so caller can distinguish from an empty-but-successful response).
+        """
         url = f"{base_url}/status/sessions"
         try:
             async with self._session.get(url, headers=self._server_headers("application/xml"), timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status == 403:
                     _LOGGER.warning("get_sessions HTTP 403 — endpoint restricted for non-owner users; sessions will be empty")
-                    return []
+                    return None
                 if resp.status != 200:
                     _LOGGER.warning("get_sessions HTTP %s", resp.status)
-                    return []
+                    return None
                 text = await resp.text()
         except Exception as err:
             _LOGGER.warning("Network error in get_sessions: %s", err)
-            return []
+            return None
 
         sessions: list[dict[str, Any]] = []
         try:
