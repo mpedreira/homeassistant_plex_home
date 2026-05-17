@@ -126,13 +126,22 @@ class PlexDataUpdateCoordinator(DataUpdateCoordinator):
             else:
                 # Don't try to use the (likely unreachable) stored URL — return empty and retry
                 _LOGGER.warning("[plex_watch] Could not verify connection — returning empty data, will retry on next poll")
-                return {"sessions": [], "recently_added": [], "on_deck": [], "unwatched_counts": {}, "new_series_detected": False, "server_online": False}
+                return {"sessions": [], "recently_added": [], "on_deck": [], "unwatched_counts": {}, "my_session": None, "new_series_detected": False, "server_online": False}
 
         sessions = await self.api.get_sessions(self.base_url)
         recently_added = await self.api.get_library_recently_added(self.base_url)
         on_deck = await self.api.get_on_deck(self.base_url)
 
         server_online = self._connection_verified
+
+        # Filter sessions to find the current user's own playback
+        my_username: str = self.entry.data.get("username", "").lower()
+        my_session = None
+        for s in sessions:
+            session_user = (s.get("user") or "").lower()
+            if not my_username or session_user == my_username:
+                my_session = s
+                break
 
         # Unwatched episode counts for each watched series
         watched_raw: str = self.entry.options.get(
@@ -174,6 +183,7 @@ class PlexDataUpdateCoordinator(DataUpdateCoordinator):
             "sessions": sessions,
             "recently_added": recently_added,
             "on_deck": on_deck,
+            "my_session": my_session,
             "unwatched_counts": unwatched_counts,
             "new_series_detected": new_series_detected,
             "server_online": server_online,

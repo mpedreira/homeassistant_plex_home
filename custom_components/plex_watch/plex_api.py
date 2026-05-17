@@ -161,6 +161,24 @@ class PlexAPI:
             return f"{protocol}://{address}:{port}"
         return conn.get("uri")
 
+    async def get_account_info(self) -> dict[str, Any]:
+        """Return basic info (id, username, title) for the current plex.tv account."""
+        url = f"{PLEX_TV_BASE}/api/v2/user"
+        try:
+            async with self._session.get(url, headers=self._headers("application/json"), timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    _LOGGER.warning("get_account_info HTTP %s", resp.status)
+                    return {}
+                data = await resp.json()
+                return {
+                    "id": data.get("id"),
+                    "username": data.get("username") or data.get("title") or "",
+                    "title": data.get("title") or "",
+                }
+        except Exception as err:
+            _LOGGER.warning("Network error in get_account_info: %s", err)
+            return {}
+
     async def get_resources(self, include_local: bool = False) -> list[dict[str, Any]]:
         """Return accessible Plex servers from plex.tv account."""
         url = f"{PLEX_TV_BASE}/api/v2/resources?includeHttps=1&includeRelay=1"

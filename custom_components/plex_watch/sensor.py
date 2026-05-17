@@ -137,7 +137,7 @@ class PlexServerStatusSensor(CoordinatorEntity, SensorEntity):
 
 
 class PlexOnDeckSensor(CoordinatorEntity, SensorEntity):
-    """Top in-progress episode from /library/onDeck (closest to where you left off)."""
+    """What you are watching right now (my_session), or the top in-progress item (on_deck)."""
 
     def __init__(self, coordinator, entry_id: str):
         super().__init__(coordinator)
@@ -145,39 +145,48 @@ class PlexOnDeckSensor(CoordinatorEntity, SensorEntity):
         self._attr_icon = "mdi:play-box-multiple"
         self._attr_unique_id = f"{entry_id}_on_deck"
 
-    def _top(self):
+    def _source(self):
+        """Return (item, is_live) — prefer active session, fallback to on_deck queue."""
+        my_session = self.coordinator.data.get("my_session")
+        if my_session:
+            return my_session, True
         items = self.coordinator.data.get("on_deck", [])
-        return items[0] if items else None
+        return (items[0] if items else None), False
 
-    @property
-    def state(self):
-        item = self._top()
-        if not item:
-            return None
+    def _format_episode(self, item) -> str | None:
         if item.get("media_type") == "episode" and item.get("grandparent_title"):
             season = item.get("season_index", "?")
             ep = item.get("episode_index", "?")
             try:
-                season_str = f"{int(season):02d}"
-                ep_str = f"{int(ep):02d}"
+                s_str = f"{int(season):02d}"
+                e_str = f"{int(ep):02d}"
             except (TypeError, ValueError):
-                season_str, ep_str = str(season), str(ep)
-            return f"{item['grandparent_title']} S{season_str}E{ep_str}"
+                s_str, e_str = str(season), str(ep)
+            return f"{item['grandparent_title']} S{s_str}E{e_str}"
         return item.get("title")
 
     @property
+    def state(self):
+        item, _ = self._source()
+        if not item:
+            return None
+        return self._format_episode(item)
+
+    @property
     def extra_state_attributes(self):
-        items = self.coordinator.data.get("on_deck", [])
-        return {
-            "items": [
-                {
-                    "title": i.get("title"),
-                    "show": i.get("grandparent_title"),
-                    "season": i.get("season_index"),
-                    "episode": i.get("episode_index"),
-                    "progress_pct": i.get("progress_pct"),
-                    "type": i.get("media_type"),
-                }
-                for i in items[:5]
-            ]
+        item, is_live = self._source()
+        if not item:
+            return {"playing": False}
+        attrs = {
+            "playing": is_live,
+            "title": item.get("title"),
+            "show": item.get("grandparent_title"),
+            "season": item.get("season_index"),
+            "episode": item.get("episode_index"),
+            "progress_pct": item.get("progress_pct"),
+            "type": item.get("media_type"),
         }
+        if is_live:
+            attrs["player"] = item.get("player_title")
+            attrs["user"] = item.get("user")
+        return attrs

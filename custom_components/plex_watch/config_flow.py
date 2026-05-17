@@ -72,6 +72,8 @@ class PlexWatchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 api = PlexAPI(self._token)
                 try:
                     self._servers = await api.get_resources()
+                    account = await api.get_account_info()
+                    self._username = account.get("username") or account.get("title", "")
                 finally:
                     await api.close()
                 if not self._servers:
@@ -118,6 +120,7 @@ class PlexWatchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_BASE_URL: server["base_url"],
                         CONF_USE_LOCAL: use_local,
                         "access_token": server.get("access_token"),
+                        "username": getattr(self, "_username", ""),
                     },
                 )
 
