@@ -9,9 +9,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
         PlexNowPlayingSensor(coordinator, entry.entry_id),
         PlexLatestAddedSensor(coordinator, entry.entry_id),
         PlexNewSeriesDetectedSensor(coordinator, entry.entry_id),
-        PlexNewEpisodesSensor(coordinator, entry.entry_id),
         PlexServerStatusSensor(coordinator, entry.entry_id),
         PlexOnDeckSensor(coordinator, entry.entry_id),
+        PlexWatchlistPendingTotalSensor(coordinator, entry.entry_id),
+        PlexWatchlistNextReleaseInDaysSensor(coordinator, entry.entry_id),
+        PlexSeriesPendingEpisodesSensor(coordinator, entry.entry_id),
+        PlexWatchlistItemsWithoutDateSensor(coordinator, entry.entry_id),
     ])
 
 
@@ -98,7 +101,11 @@ class PlexNewSeriesDetectedSensor(CoordinatorEntity, SensorEntity):
 
 
 class PlexNewEpisodesSensor(CoordinatorEntity, SensorEntity):
-    """Total unwatched episodes across all series configured in Options."""
+    """Deprecated legacy sensor.
+
+    This sensor is kept only for backward compatibility in code references.
+    It is no longer registered in async_setup_entry.
+    """
 
     def __init__(self, coordinator, entry_id: str):
         super().__init__(coordinator)
@@ -209,3 +216,112 @@ class PlexOnDeckSensor(CoordinatorEntity, SensorEntity):
             attrs["player"] = item.get("player_title")
             attrs["user"] = item.get("user")
         return attrs
+
+
+class PlexWatchlistPendingTotalSensor(CoordinatorEntity, SensorEntity):
+    def __init__(self, coordinator, entry_id: str):
+        super().__init__(coordinator)
+        self._attr_name = "watchlist_pending_total"
+        self._attr_icon = "mdi:playlist-clock"
+        self._attr_unique_id = f"{entry_id}_watchlist_pending_total"
+
+    @property
+    def state(self):
+        rss = self.coordinator.data.get("watchlist_rss", {})
+        return rss.get("watchlist_pending_total", 0)
+
+    @property
+    def extra_state_attributes(self):
+        rss = self.coordinator.data.get("watchlist_rss", {})
+        return {
+            "pending_calendar": rss.get("pending_calendar", []),
+            "top_10_pending_by_date": rss.get("top_10_pending_by_date", []),
+            "weekly_new_items": rss.get("weekly_new_items", 0),
+            "feed_items_total": rss.get("feed_items_total", 0),
+            "plex_items_total": rss.get("plex_items_total", 0),
+            "skipped_non_supported_items": rss.get("skipped_non_supported_items", 0),
+            "category_counts": rss.get("category_counts", {}),
+            "excluded_non_plex_items": rss.get("excluded_non_plex_items", 0),
+            "pending_movies": rss.get("pending_movies", {}),
+            "watchlist_matches": rss.get("watchlist_matches", 0),
+            "watchlist_items_checked": rss.get("watchlist_items_checked", 0),
+            "watchlist_unmatched": rss.get("watchlist_unmatched", []),
+            "feed_status": rss.get("feed_status", "unknown"),
+            "feed_error": rss.get("feed_error"),
+            "last_update": rss.get("last_update"),
+        }
+
+
+class PlexWatchlistNextReleaseInDaysSensor(CoordinatorEntity, SensorEntity):
+    def __init__(self, coordinator, entry_id: str):
+        super().__init__(coordinator)
+        self._attr_name = "watchlist_next_release_in_days"
+        self._attr_icon = "mdi:calendar-clock"
+        self._attr_unique_id = f"{entry_id}_watchlist_next_release_in_days"
+
+    @property
+    def state(self):
+        rss = self.coordinator.data.get("watchlist_rss", {})
+        return rss.get("watchlist_next_release_in_days")
+
+    @property
+    def extra_state_attributes(self):
+        rss = self.coordinator.data.get("watchlist_rss", {})
+        return {
+            "next_release": rss.get("next_release"),
+            "feed_status": rss.get("feed_status", "unknown"),
+            "feed_error": rss.get("feed_error"),
+        }
+
+
+class PlexSeriesPendingEpisodesSensor(CoordinatorEntity, SensorEntity):
+    def __init__(self, coordinator, entry_id: str):
+        super().__init__(coordinator)
+        self._attr_name = "series_pending_episodes"
+        self._attr_icon = "mdi:television-classic"
+        self._attr_unique_id = f"{entry_id}_series_pending_episodes"
+
+    @property
+    def state(self):
+        rss = self.coordinator.data.get("watchlist_rss", {})
+        by_series = rss.get("series_pending_episodes", {})
+        return len([series for series, count in by_series.items() if count > 0])
+
+    @property
+    def extra_state_attributes(self):
+        rss = self.coordinator.data.get("watchlist_rss", {})
+        by_series = rss.get("series_pending_episodes", {})
+        pending_movies = rss.get("pending_movies", {})
+        return {
+            "by_series": by_series,
+            "pending_movies": pending_movies,
+            "total_pending": sum(by_series.values()) + sum(pending_movies.values()),
+            "top_10_pending_by_date": rss.get("top_10_pending_by_date", []),
+            "weekly_new_items": rss.get("weekly_new_items", 0),
+        }
+
+
+class PlexWatchlistItemsWithoutDateSensor(CoordinatorEntity, SensorEntity):
+    def __init__(self, coordinator, entry_id: str):
+        super().__init__(coordinator)
+        self._attr_name = "watchlist_items_without_date"
+        self._attr_icon = "mdi:calendar-remove"
+        self._attr_unique_id = f"{entry_id}_watchlist_items_without_date"
+
+    @property
+    def state(self):
+        rss = self.coordinator.data.get("watchlist_rss", {})
+        return rss.get("watchlist_items_without_date", 0)
+
+    @property
+    def extra_state_attributes(self):
+        rss = self.coordinator.data.get("watchlist_rss", {})
+        return {
+            "feed_status": rss.get("feed_status", "unknown"),
+            "feed_error": rss.get("feed_error"),
+            "feed_items_total": rss.get("feed_items_total", 0),
+            "plex_items_total": rss.get("plex_items_total", 0),
+            "skipped_non_supported_items": rss.get("skipped_non_supported_items", 0),
+            "category_counts": rss.get("category_counts", {}),
+            "excluded_non_plex_items": rss.get("excluded_non_plex_items", 0),
+        }

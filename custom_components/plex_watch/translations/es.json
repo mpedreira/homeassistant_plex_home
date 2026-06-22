@@ -38,9 +38,13 @@
         "data": {
           "server_id": "Servidor",
           "use_local": "Permitir conexiones de red local (activa solo si HA est\u00e1 en la misma LAN que Plex)",
-          "watched_series": "Series a seguir \u2014 separadas por coma (ej: Dragon Ball Z, One Piece). Deja vac\u00edo para desactivar las alertas de nuevos episodios."
+          "watchlist_rss_url": "URL RSS de watchlist de Plex (solo origen Plex).",
+          "title_language": "Idioma de t\u00edtulos (auto, es, en, fr...)"
         }
       }
+    },
+    "error": {
+      "invalid_url": "URL no v\u00e1lida. Usa http:// o https://"
     }
   }
 }

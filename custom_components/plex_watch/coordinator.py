@@ -7,8 +7,17 @@ from datetime import timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, DEFAULT_SCAN_INTERVAL, CONF_USE_LOCAL, CONF_WATCHED_SERIES
+from .const import (
+    DOMAIN,
+    DEFAULT_SCAN_INTERVAL,
+    CONF_USE_LOCAL,
+    CONF_WATCHED_SERIES,
+    CONF_WATCHLIST_RSS_URL,
+    CONF_TITLE_LANGUAGE,
+    MAX_DASHBOARD_ITEMS,
+)
 from .plex_api import PlexAPI
+from .rss_watchlist import PlexWatchlistRSS
 from .storage import PlexWatchStorage
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,6 +50,7 @@ class PlexDataUpdateCoordinator(DataUpdateCoordinator):
         self.api = PlexAPI(entry.data["token"], server_token=server_token)
         self.base_url: str = entry.data["base_url"]
         self.storage = PlexWatchStorage(hass, entry.entry_id)
+        self._rss = PlexWatchlistRSS(self.api._session, max_dashboard_items=MAX_DASHBOARD_ITEMS)
         self._loaded = False
         self._persisted: dict = {}
         self._connection_verified = False
@@ -93,6 +103,16 @@ class PlexDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict:
         """Main coordinator update. Never raises UpdateFailed from network errors."""
+        # Apply preferred language for Plex metadata titles.
+        title_language_opt = self.entry.options.get(
+            CONF_TITLE_LANGUAGE,
+            self.entry.data.get(CONF_TITLE_LANGUAGE, "auto"),
+        )
+        title_language = (title_language_opt or "auto").strip().lower()
+        if title_language == "auto":
+            title_language = self.hass.config.language
+        self.api.set_language(title_language or None)
+
         # Load persistent state once
         if not self._loaded:
             self._loaded = True
@@ -126,7 +146,16 @@ class PlexDataUpdateCoordinator(DataUpdateCoordinator):
             else:
                 # Don't try to use the (likely unreachable) stored URL — return empty and retry
                 _LOGGER.warning("[plex_watch] Could not verify connection — returning empty data, will retry on next poll")
-                return {"sessions": [], "recently_added": [], "on_deck": [], "unwatched_counts": {}, "my_session": None, "new_series_detected": False, "server_online": False}
+                return {
+                    "sessions": [],
+                    "recently_added": [],
+                    "on_deck": [],
+                    "unwatched_counts": {},
+                    "my_session": None,
+                    "new_series_detected": False,
+                    "server_online": False,
+                    "watchlist_rss": {},
+                }
 
         raw_sessions = await self.api.get_sessions(self.base_url)
         sessions_ok: bool = raw_sessions is not None
@@ -181,6 +210,14 @@ class PlexDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.error("Failed to save storage: %s", err)
             _LOGGER.info("New series detected: %s", new_series)
 
+        watchlist_rss: dict = {}
+        rss_url: str = self.entry.options.get(CONF_WATCHLIST_RSS_URL, "").strip()
+        if rss_url:
+            watchlist_rss = await self._rss.fetch_and_build(rss_url)
+            watchlist_items = watchlist_rss.get("watchlist_items", [])
+            resolved_pending = await self.api.resolve_watchlist_pending(self.base_url, watchlist_items)
+            watchlist_rss.update(resolved_pending)
+
         return {
             "sessions": sessions,
             "sessions_ok": sessions_ok,
@@ -190,5 +227,6 @@ class PlexDataUpdateCoordinator(DataUpdateCoordinator):
             "unwatched_counts": unwatched_counts,
             "new_series_detected": new_series_detected,
             "server_online": server_online,
+            "watchlist_rss": watchlist_rss,
         }
 

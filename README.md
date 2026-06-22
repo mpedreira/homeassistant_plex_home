@@ -31,23 +31,37 @@ Monitor your [Plex Media Server](https://www.plex.tv/) from Home Assistant. Trac
 - **Auto-rediscovery** — detects when the server IP changes and reconnects automatically
 - **Configurable poll interval** — default 30 s
 - **Local/remote toggle** — optionally prefer LAN connections
-- **Watched series tracking** — track unfinished episodes per show
 - **HA Storage** — remembers detected series across restarts
 
 ---
 
 ## Sensors
 
-Six sensors are created per configured server.
+Nine sensors are created per configured server.
 
 | Entity | What it shows | Attributes |
 |---|---|---|
 | `sensor.plex_now_playing` | Number of active streams on the server | `sessions` list with show, user, player, progress % |
 | `sensor.plex_latest_added` | Most recently added episode | `grandparent_title`, `season`, `episode`, `added_at` |
 | `sensor.plex_new_series_detected` | `True` / `False` — a brand-new show appeared in the library | — |
-| `sensor.plex_new_episodes` | Total **unwatched** episodes across your tracked series | `by_series` dict with per-show count |
 | `sensor.plex_server_status` | `online` / `offline` | — |
 | `sensor.plex_on_deck` | What **you** are watching right now (or `none` if idle) | `playing`, `show`, `season`, `episode`, `progress_pct`, `player` |
+| `sensor.watchlist_pending_total` | Number of pending episodes already released in Plex | `pending_calendar`, `top_10_pending_by_date`, `weekly_new_items`, `excluded_non_plex_items` |
+| `sensor.watchlist_next_release_in_days` | Days until the next future release in your Plex watchlist | `next_release`, `feed_status`, `feed_error` |
+| `sensor.series_pending_episodes` | Number of series with pending episodes | `by_series`, `total_pending`, `top_10_pending_by_date` |
+| `sensor.watchlist_items_without_date` | Plex watchlist episodes without a parseable release date | `feed_status`, `feed_error`, `excluded_non_plex_items` |
+
+### RSS Watchlist rules
+
+- The RSS analysis only keeps **Plex-origin items**.
+- Any watchlist entry from external streaming services is excluded from all totals.
+- Pending episodes are counted only when release date is in the past or today.
+- "This week" uses local calendar week (Monday to Sunday).
+
+### Deprecated sensor
+
+- `sensor.plex_new_episodes` is deprecated and no longer created.
+- Use `sensor.watchlist_pending_total` + `series_pending_episodes` instead.
 
 > **Note:** `plex_now_playing` requires admin access on the server. On shared (non-owned) servers it will always show `0` — this is a Plex server restriction, not a bug.
 
@@ -120,20 +134,21 @@ After setup, click **Configure** on the integration card to change:
 |---|---|
 | **Server** | Switch to a different server without re-authenticating |
 | **Use local connection** | Prefer LAN address (useful if HA and Plex are on the same network) |
-| **Watched series** | Comma-separated list of show titles to track (`Berlin, The Bear, Severance`) |
+| **Plex watchlist RSS URL** | RSS URL used for pending/weekly sensors (must be `http://` or `https://`) |
+| **Title language** | Metadata language for pending titles (`auto`, `es`, `en`, `fr`, ...) |
 
 ---
 
 ## Automation examples
 
-### Notify when a new episode of a tracked show is added
+### Notify when total pending content increases
 
 ```yaml
 automation:
-  - alias: "Plex — new episode alert"
+  - alias: "Plex — pending content increased"
     trigger:
       - platform: state
-        entity_id: sensor.plex_new_episodes
+        entity_id: sensor.watchlist_pending_total
     condition:
       - condition: template
         value_template: "{{ trigger.to_state.state | int > trigger.from_state.state | int }}"
@@ -141,7 +156,7 @@ automation:
       - service: notify.mobile_app_your_phone
         data:
           message: >
-            {{ state_attr('sensor.plex_new_episodes', 'by_series') | to_json }}
+            {{ state_attr('sensor.watchlist_pending_total', 'top_10_pending_by_date') | to_json }}
 ```
 
 ### Turn on the TV when you start watching
@@ -204,14 +219,6 @@ automation:
 1. Check HA logs for `Server 'X' accessToken present: False`. If false, the Plex server owner has not enabled token sharing.
 2. Re-add the integration to force a fresh token fetch.
 3. Ask the server owner to check **Settings → Sharing** on their Plex server.
-
----
-
-### `sensor.plex_new_episodes` shows `0` or never updates
-
-**Cause:** The show titles in **Watched Series** must match exactly what Plex stores as the series title.
-
-**Fix:** Check the exact title in Plex (e.g. `The Bear`, not `bear` or `The Bear (2022)`). Titles are matched case-insensitively but must otherwise be exact.
 
 ---
 
